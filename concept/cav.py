@@ -8,14 +8,13 @@ from six.moves import range
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
-from tcav import utils
-import torch
+from concept import utils
 
 
 class CAV(object):
     """CAV class contains methods for concept activation vector (CAV).
 
-    CAV represents semenatically meaningful vector directions in
+    CAV represents semantically meaningful vector directions in
     network's embeddings (bottlenecks).
     """
 
@@ -54,11 +53,11 @@ class CAV(object):
         labels = []
         labels2text = {}
         min_data_point = np.min(
-            [acts[concept][bottleneck].shape[0] for concept in acts.keys()]
+            [len(acts[concept][bottleneck]) for concept in acts.keys()]
         )
 
         for i, concept in enumerate(concepts):
-            x.extend(acts[concept][bottleneck][:min_data_point]
+            x.extend(np.array(acts[concept][bottleneck][:min_data_point])
                      .reshape(min_data_point, -1))
             labels.extend([i] * min_data_point)
             labels2text[i] = concept
@@ -67,6 +66,25 @@ class CAV(object):
         labels = np.array(labels)
 
         return x, labels, labels2text
+
+    @staticmethod
+    def _train_lm(lm, x, y, labels2text):
+        x_train, x_test, y_train, y_test = train_test_split(
+            x, y, test_size=0.33, stratify=y
+        )
+        lm.fit(x_train, y_train)
+        y_pred = lm.predict(x_test)
+        num_classes = max(y) + 1
+        acc = {}
+        num_correct = 0
+        for class_id in range(num_classes):
+            idx = (y_test == class_id)
+            acc[labels2text[class_id]] = metrics.accuracy_score(
+                y_pred[idx], y_test[idx])
+            num_correct += (sum(idx) * acc[labels2text[class_id]])
+        acc['overall'] = float(num_correct) / float(len(y_test))
+        print('acc per class %s' % (str(acc)))
+        return acc
 
     def __init__(self, concepts, bottleneck, hparams, save_path=None):
         self.concepts = concepts
@@ -90,12 +108,11 @@ class CAV(object):
             raise ValueError('Invalid hparams.model_type: {}'.format(
                 self.hparams.model_type))
 
-        self.accuracies = self._train_lm(lm, x, labels, labels2text)
+        self.accuracies = CAV._train_lm(lm, x, labels, labels2text)
         if len(lm.coef_) == 1:
             # if there were only two labels, the concept is assigned to label 0 by
             # default. So we flip the coef_ to reflect this.
             self.cavs = [-1 * lm.coef_[0], lm.coef_[0]]
-
         else:
             self.cavs = [c for c in lm.coef_]
         self._save_cavs()
@@ -127,24 +144,6 @@ class CAV(object):
         else:
             print('save_path is None. Not saving anything')
 
-    def _train_lm(self, lm, x, y, labels2text):
-        x_train, x_test, y_train, y_test = train_test_split(
-            x, y, test_size=0.33, stratify=y
-        )
-        lm.fit(x_train, y_train)
-        y_pred = lm.predict(x_test)
-        num_classes = max(y) + 1
-        acc = {}
-        num_corect = 0
-        for class_id in range(num_classes):
-            idx = (y_test == class_id)
-            acc[labels2text[class_id]] = metrics.accuracy_score(
-                y_pred[idx], y_test[idx])
-            num_corect += (sum(idx) * acc[labels2text[class_id]])
-        acc['overall'] = float(num_corect) / float(len(y_test))
-        print('acc per class %s' % (str(acc)))
-        return acc
-
 
 def get_or_train_cav(concepts,
                      bottleneck,
@@ -155,7 +154,6 @@ def get_or_train_cav(concepts,
     if cav_hparams is None:
         cav_hparams = CAV.default_hparams()
 
-    cav_path = None
     if cav_dir is not None:
         utils.make_dir_if_not_exists(cav_dir)
         cav_path = os.path.join(

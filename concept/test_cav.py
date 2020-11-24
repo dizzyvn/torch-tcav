@@ -8,8 +8,8 @@ import unittest
 import numpy as np
 from sklearn import linear_model
 from six.moves import range
-from tcav.cav import CAV, get_or_train_cav
-from tcav import utils
+from concept.cav import CAV, get_or_train_cav
+from concept import utils
 
 
 class test_cav(unittest.TestCase):

@@ -52,10 +52,11 @@ with import <nixpkgs> {};
       pip install --upgrade pip
       pip install -r requirements.txt
 
-      function convertnb() {
+      function runnb() {
         sed -e 's/"outputPrepend",//g' "$1".ipynb | sed -r '/^\s*$/d' > _tmp.ipynb
         jupyter nbconvert --to python _tmp.ipynb --output $1.py
-        rm _tmp.ipynb    
+        rm _tmp.ipynb
+        python $1.py
       }
     '';         
 }

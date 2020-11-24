@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+
 class RunParams(object):
     def __init__(self,
                  bottleneck,
@@ -10,7 +11,6 @@ class RunParams(object):
                  activation_generator,
                  cav_dir,
                  alpha,
-                 model,
                  overwrite=True):
         self.bottleneck = bottleneck
         self.concepts = concepts
@@ -19,7 +19,6 @@ class RunParams(object):
         self.cav_dir = cav_dir
         self.alpha = alpha
         self.overwrite = overwrite
-        self.model = model
 
     def get_key(self):
         return '_'.join([
